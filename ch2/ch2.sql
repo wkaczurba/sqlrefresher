@@ -139,6 +139,3 @@ SELECT 22/7 * POWER(6.00, 2) FROM DUAL;
 SELECT 3.14 * 6.00 * 6.00 FROM DUAL;
 SELECT 3.14 * POWER(6.00, 2) FROM DUAL;
 /* ***** END OF EX 2-3 ****** */
-
-// p.100 - Lab exercise:
-// Structural info for PRODUCT_INFORMATION and ORDERS tables
