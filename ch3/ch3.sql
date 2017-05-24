@@ -387,3 +387,91 @@ ORDER BY "Variance" DESC, JOB_TITLE DESC;
 
 
 -- p.150 Ampersand substituition.
+
+-- Use KING, 100
+/*SELECT employee_id, last_name, phone_number
+FROM employees
+WHERE last_name = '&LASTNAME'
+OR employee_id = &EMPNO;
+
+-- p.152, Double ampersand substitution:
+SELECT first_name, last_name
+FROM employees
+WHERE last_name LIKE '%&SEARCH%'
+AND first_name LIKE '%&SEARCH%';
+*/
+/*
+UNDEFINE s;
+--DEFINE s=abc;
+SELECT first_name, last_name
+FROM employees
+WHERE last_name LIKE '%&&s%'
+AND first_name LIKE '%&s%';
+
+-- Substituting column names, p.154
+UNDEFINE col;
+DEFINE col="SALARY";
+SELECT first_name, job_id, &&col
+FROM employees
+WHERE job_id IN ('MK_MAN','SA_MAN')
+ORDER BY &col;
+
+-- Substituting Expressions and Text
+SELECT &rest_of_statement;
+SELECT department_name FROM departments;
+
+--UNDEFINE SELECT_CLAUSE
+--UNDEFINE FROM_CLAUSE
+--UNDEFINE WHERE_CLAUSE
+--UNDEFINE ORDER_BY_CLAUSE;
+--DEFINE SELECT_CLAUSE="*"
+--DEFINE FROM_CLAUSE="regions"
+--DEFINE WHERE_CLAUSE="1=1"
+--DEFINE ORDER_BY_CLAUSE="region_name DESC";
+SELECT &SELECT_CLAUSE
+  FROM &FROM_CLAUSE
+ WHERE &WHERE_CLAUSE 
+ ORDER BY &ORDER_BY_CLAUSE;
+*/
+
+-- p. 158 Define and Undefine command;
+DEFINE;
+DEFINE x = 'zzz';
+DEFINE y = "ZZZ";
+UNDEFINE x;
+UNDEFINE y;
+
+-- p.161 The ampersand will be ignored when DEFINES are set OFF.
+SET DEFINE OFF;
+SELECT 'Soda & bacon' FROM DUAL;
+SET DEFINE ON;
+  -- Below you will be asked for a variable
+  --SET DEFINE ON;
+  --SELECT 'Soda & bacon' FROM DUAL;
+  
+ --SELECT CASE x=y WHEN TRUE FROM DUAL;
+ 
+-- p.162 The verify command;
+
+-- Verify is ON by default
+UNDEFINE x;
+SET VERIFY ON; 
+SELECT &x FROM DUAL;
+
+-- Setting it to off will make it stop displaying values stored;
+SET VERIFY OFF;
+SELECT * FROM DEPARTMENTS;
+
+-- p. 163 Ex 3-3: Using ampersand substitution
+DESC employees;
+DEFINE EMPLOYEE_ID=100;
+DEFINE TAX_RATE=0.22;
+SELECT &&EMPLOYEE_ID EMPLOYEE_ID,
+  first_name, 
+  last_name, 
+  &&TAX_RATE tax_rate,
+  salary,
+  salary * 12 "ANNUAL SALARY",
+  (&tax_rate * salary * 12) AS "TAX",
+  salary
+FROM employees;
