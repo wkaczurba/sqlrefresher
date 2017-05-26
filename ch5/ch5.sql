@@ -191,3 +191,215 @@ WHERE department_id = 30;
 -- *
 -- * Apply conditional Expressions in a SELECT Statement (p.250)
 -- *
+
+-- p. 252; General functions
+--     NVL - provides an alternative function if the first argument is NULL
+--     NVL2 - is strange; does not resemble NVL; NVL2(cond; if cond <> NULL; if cond == NULL)
+--     COALESCE - like cascaded NVL; unlimited 
+--     NULLIF( arg1, arg2 ) - returns null when arg1 = arg2; if uneven - returns ARG1.
+--
+-- NVL(original, ifnull)
+    -- FAILS WHEN ONLY ONE PARAM:
+    --SELECT NVL(123) FROM DUAL;
+SELECT NVL(NULL, 123) FROM DUAL;
+SELECT NVL(SUBSTR('ABC',4), 'No value specified') FROM DUAL; -- SUBSTR
+
+-- fig 5.6
+SELECT last_name, salary, commission_pct, (nvl(commission_pct, 0) * salary + 1000) monthly_commission
+FROM employees
+WHERE last_name LIKE 'E%';
+
+SELECT last_name, salary, commission_pct, (commission_pct * salary + 1000) monthly_commission
+FROM employees
+WHERE last_name LIKE 'E%';
+
+-- p.254: NVL2
+-- NVL2(original, if_not_null, if_null)
+SELECT NVL2(NULL, 'value was not null', 'the value was null') FROM DUAL;
+  -- This one will fail as 1 is of different type than 'a string'
+  -- SELECT NVL2(1234, 1 , 'a string') FROM dual;
+SELECT NVL2(NULL,1234,5678) FROM dual; -- 5678
+
+-- figure 5.7
+SELECT last_name, salary, commission_pct, 
+  nvl2(commission_pct, 'Commission Earner', 'Not a commission earner') employee_type
+FROM employees
+WHERE last_name LIKE 'G%';
+
+-- NULLIF
+--   NULLIF( arg1, arg2 ) -> returns NULL when arg1 = arg2'
+SELECT NULLIF(1, 1) FROM DUAL; -- NULL
+SELECT NULLIF('ab','ab') FROM DUAL; --NULL
+SELECT NULLIF('abc','ab') FROM DUAL; -- 'abc'
+SELECT NULLIF(NULLIF(1, 1), NULL) FROM DUAL;
+
+-- p. 256
+SELECT NULLIF(1234, 1234) FROM DUAL; -- NULL
+SELECT NULLIF(1234, 1234+1) FROM dual; -- 1234
+SELECT NULLIF('24-JUL-2019','24-JUL-19') FROM DUAL; -- 24-JUL-2019
+
+SELECT first_name, last_name, email, 
+  nvl2(
+    nullif(substr(first_name, 1, 1) || upper(last_name), email), --  returns null when 'JSmith' == 'JSmith'
+    'Email does not match pattern', -- When NOT NULL value returned by NULLILF (pattern not matching)
+    'Match found') -- When NULL value returned by NULLIF (pattern matching)
+    AS pattern;
+FROM employees
+WHERE length(first_name) = 4;
+
+
+-- ******************
+-- p.257 Using NULLIF and NVL2 for Simple Conditional Logic
+-- ******************
+SELECT first_name, last_name, NVL2(NULLIF(LENGTH(FIRST_NAME), LENGTH(LAST_NAME)), 'Different Length', 'Same Length') AS NAME_LENGTHS
+FROM employees
+WHERE department_id = 100;
+
+-- p.258 COALESCE function
+--   COALESCE(expr1, expr2, ..., exprn)
+-- Similar to:
+--   NVL(expr1, NVL(expr2, NVL(expr3, expr4)))
+SELECT coalesce(null, null, null, 'a string') FROM dual; -- 'a string'
+SELECT coalesce(null, null, null) FROM dual; -- null
+SELECT coalesce(substr('abc',4), 'Not bc', 'No substring') FROM dual; -- Not bc
+ 
+-- fig 5-9
+SELECT COALESCE(state_province, postal_code, city), state_province, postal_code, city
+FROM locations
+WHERE country_id IN ('UK','IT','JP');
+
+
+-- *********************************
+-- Conditionial functions
+--   DECODE, CASE
+--    * DECODE is specific to Oracle
+--    * CASE is ANSI SQL compliant
+-- *********************************
+-- DECODE[expr1, comp1, if_1_true, [comp2, if_2_true, [comp3, if_3_true]], ELSE_VALUE];
+
+SELECT DECODE(1234, 123, '123 is a match') FROM dual; -- NULL;
+SELECT DECODE(1234, 123, '123 is a match',' 123 is not a match') FROM DUAL; -- Not a match
+SELECT DECODE('search','comp1','true1','comp2','true2','search','true3', 'no match' ) FROM DUAL; -- 'true3'
+SELECT DECODE('search',
+   'comp1','true1',
+   'comp2','true2',
+   'search','true3',
+   substr('2search',2,6), 'true4',
+   'no match'
+) FROM DUAL; -- 'true3'
+
+-- Fig 5.10 The decode function
+SELECT DISTINCT country_id, decode(country_id, 
+  'BR', 'Southern Hemisphere',
+  'AU', 'Southern Hemisphere',
+        'Northern Hemisphere') hemisphere
+FROM locations
+ORDER BY hemisphere;
+
+SELECT DECODE(5, 
+  1, '5=1',
+  2, '5=2',
+  3, '5=3',
+  4, '5=4',
+  5, '5=5',
+  'not true') FROM DUAL;
+SELECT DECODE(NULL, NULL, 'EQUALS', 'NOT EQUALS') FROM DUAL; -- Two NULLS do EQUALS in the DECODE function!
+
+-- ********************************
+-- p.262 The CASE expression
+--   there are two variants of the CASE expression:
+--   simple CASE (one value as a basis for comparision),
+--   searched CASE (multiple conditions)
+--
+-- CASE takes at least 3 manadatory parameters (search_expr, comparision_expr, iftrue1)
+--
+-- CASE search_expr
+--   WHEN comparision_expr1 THEN iftrue1
+--   [WHEN comparision_expr2 THEN iftrue2
+--   WHEN comparision_expr3 THEN iftrue3
+--   ELSE iffalse]
+-- END
+-- ********************************
+-- p.264
+SELECT 
+  CASE substr(1234, 1, 3)
+    WHEN '134' THEN '134 is a match'
+    WHEN '1235' THEN '1235 is a match'
+    WHEN concat('1','23') THEN concat('1','23')||' is a match'
+    ELSE 'no match'
+  END
+FROM dual;
+
+-- 
+-- Figure 5-11.
+-- 
+SELECT last_name, hire_date, department_id,
+  trunc(months_between('01-JAN-2013',hire_date)) months,
+  trunc(months_between('01-JAN-2013',hire_date)/24) "Months divided by 24",
+  CASE trunc(months_between('01-JAN-2013', hire_date)/24)
+    WHEN 1 THEN 'intern'
+    WHEN 2 THEN 'junior'
+    WHEN 3 THEN 'intermediate'
+    WHEN 4 THEN 'senior'
+    ELSE 'furniture'
+  END loyalty
+FROM employees
+WHERE department_id NOT IN (50, 80, 90, 100, 110)
+ORDER BY months;
+-- 
+-- p.265 Searched case
+-- CASE
+--   WHEN condition1 THEN iftrue1;
+--   WHEN condition2 THEN iftrue2;
+--   WHEN condition3 THEN iftrue3;
+--   ELSE iffalse;
+-- END
+SELECT last_name, hire_date,
+  trunc(months_between('01-JAN-2013',hire_date)) months,
+  trunc(months_between('01-JAN-2013',hire_date)/24) "months divided by 24",
+  CASE 
+    WHEN trunc(months_between('01-JAN-2013',hire_date)/24) < 2 THEN 'Intern'
+    WHEN trunc(months_between('01-JAN-2013',hire_date)/24) < 3 THEN 'Junior'
+    WHEN trunc(months_between('01-JAN-2013',hire_date)/24) < 4 THEN 'Intermediate'
+    WHEN trunc(months_between('01-JAN-2013',hire_date)/24) < 5 THEN 'Senior'
+    ELSE 'Furniture'
+  END loyalty
+FROM employees
+WHERE department_id NOT IN(50, 80, 90, 100, 110)
+ORDER BY months;
+
+-- p.268 Exercise 5.3 Using the DECODE function
+SELECT state_province, 
+  DECODE (UPPER(state_province),
+    'WASHINGTON', 'Headquarters',
+    'TEXAS', 'Oil wells',
+    'CALIFORNIA', CITY,
+    'NEW JERSEY', STREET_ADDRESS
+  ) location_info
+FROM locations
+WHERE UPPER(country_id) LIKE 'US'
+ORDER BY location_info;
+
+SELECT state_province,
+  CASE UPPER(state_province)
+   WHEN 'WASHINGTON' THEN 'Headquarters'
+   WHEN 'TEXAS' THEN 'Oil wells'
+   WHEN 'CALIFORNIA' THEN city
+   WHEN 'NEW JERSEY' THEN street_address
+  END location_info
+FROM locations
+WHERE upper(country_id) LIKE 'US'
+ORDER BY location_info;
+
+SELECT state_province,
+  CASE
+    WHEN UPPER(state_province)='WASHINGTON' THEN 'Headquarters'
+    WHEN UPPER(state_province)='TEXAS' THEN 'Oil wells'
+    WHEN UPPER(state_province)='CALIFORNIA' THEN city
+    WHEN UPPER(state_province)='NEW JERSEY' THEN street_address
+  END location_info
+FROM locations
+WHERE upper(country_id) LIKE 'US'
+ORDER BY location_info;
+-- End of the exercise.
+
