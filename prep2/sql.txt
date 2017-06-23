@@ -1,0 +1,269 @@
+-- TODO: --
+
+p.26
+get act_seats from aircraft_flights, act_name is Boeing 787
+
+p.27
+print apt_id, apt_name, apt_abbr from airports
+
+p.27
+everything from airports
+
+p.28
+airports and aircraft_fleet when apt_id are equa;
+
+p.29
+only all columns from apt table joined with aircraft_fleet when apt_id are equal
+
+p.29
+apt_abbr, apt_name, act_id from joined airport + aircraft_fleet when apt_id are equal
+use aliases for airport (apt) and aircraft fleet (afl)
+
+** FINISHED AT 32 **
+SELECT emp_last, emp_first, salary * 1.05 SAL_WITH_RAISE
+FROM employees
+WHERE emp_job = 'Pilot'
+ORDER BY salary DESC;
+
+SELECT SYSDATE, SYSDATE+5 FROM DUAL;
+
+-- Auto-ALIASING and aliasing IN TWO DIFFERENT WAYS:
+SELECT emp_first, emp_last, emp_firsst || ' ' || emp_last
+FROM employees WHERE emp_job = 'CEO';
+
+SELECT emp_first, emp_last, emp_first || ' ' || emp_last full_name
+FROM employees
+WHERE emp_job = 'CEO'
+
+-- p.39 -> Reusing aliases.
+SELECT NAME, STYLE, DECKS, SEATS
+FROM
+(
+SELECT act_name as name,
+       act_body_style as style,
+	   act_decks as decks,
+	   act_seats as seats
+FROM aircraft_types
+ORDER BY act_seats
+)
+WHERE decks = 'Single'
+ORDER BY name;
+
+
+-- p.41: Sorting by characters is case-sensitive:
+
+select num_column from prep071.sort_example order by num_column;
+select char_column from prep071.sort_example order by char_column;
+select num_column from prep071.sort_example order by TO_CHAR(num_column);
+
+SELECT * FROM aircraft_fleet ORDER BY apt_id NULLS FIRST;
+
+--
+SELECT + SUBQUERIES: -> p.44.
+
+SELECT emp_job, 
+  (SELECT act_name FROM aircraft_types act NATURAL JOIN aircraft_fleet afl
+   WHERE afl.afl_id = e1.afl_id) AS aircraft_type,
+   emp_last,
+  (SELECT emp_last FROM employees e2
+   WHERE e2.emp_id = e1.emp_supervisor) AS MANAGER
+FROM employees e1
+ORDER BY emp_job, aircraft_type DESC, emp_last;
+
+-- p.45 DISTINCT
+SELECT DISTINCT act_body_style, act_decks FROM aircraft_types;
+SELECT UNIQUE apt.* FROM airports apt JOIN aircraft_fleet afl ON apt.apt_id = afl.apt_id;
+
+-- p.46 WHERE
+-- TOOD: Add more p.47-50
+SELECT NAME, STYLE, DECKS, SEATS FROM
+  (SELECT ACT_NAME AS NAME,
+          ACT_BODY_STYLE AS STYLE,
+		  ACT_DECKS AS DECKS,
+		  ACT_SEATS AS SEATS
+  FROM aircraft_types)
+WHERE decks='Single';
+
+  --p.50 TODO: Combining two or more conditions with Logical Operators (p.50)
+  
+
+-- p.54 Ampersand:
+SELECT act_name, act_body_style, act_decks FROM aircraft_types WHERE act_name = '&AIRCRAFT_NAME';
+SELECT apt_name, apt_abbr, act_name, &COLUMN_NAME FROM aircraft_fleet WHERE &WHERE_CLAUSE ORDER BY &ORDER_BY;
+
+  -- TODO: 58
+
+-- p.58: DEFINE+UNDEFINE  
+DEFINE variable_name
+UNDEFINE variable_name
+
+
+-- ************
+-- p.59 USE SQL ROW LIMITING CLAUSE
+-- *************
+
+-- This will generate messed-up results, as WHERE rownum < 6 is executed before ORDER BY:
+SELECT apt_name, apt_abbr, act_name
+FROM aircraft_fleet_v
+WHERE rownum < 6
+ORDER BY apt_name, act_name;
+
+-- This is better:
+SELECT apt_name, apt_abbr, act_name
+FROM aircraft_fleet_v
+ORDER BY apt_name, act_name
+FETCH FIRST 5 ROWS ONLY;
+
+-- TODO: NEED TO READ ABOUT OFFSET -> https://oracle-base.com/articles/12c/row-limiting-clause-for-top-n-queries-12cr1
+SELECT apt_name, apt_abbr, act_name FROM aircraft_fleet_v
+ORDER BY apt_name DESC, act_name DESC
+FETCH FIRST 5 ROWS ONLY;
+
+SELECT apt_name, apt_abbr, act_name FROM aircraft_fleet_v
+ORDER BY apt_name DESC, act_name DESC
+FETCH FIRST 5 ROWS WITH TIES;
+
+SELECT apt_name, apt_abbr, act_name FROM aircraft_fleet_v
+ORDER BY apt_name DESC, act_name DESC
+FETCH FIRST 10 PERCENT ROWS WITH TIES;
+
+SELECT apt_name, apt_abbr, act_name FROM aircraft_fleet_v ORDER BY apt_name DESC, act_name DESC
+FETCH FIRST 1 PERCENT ROWS WITH TIES;
+
+SELECT apt_name, apt_abbr, act_name FROM aircraft_fleet_v ORDER BY apt_name DESC, act_name DESC
+FETCH FIRST 1 PERCENT ROWS ONLY;
+
+-- ************
+-- p.63 USE SINGLE ROW FUNCTIONS
+-- *************
+-- CEIL, FLOOR, ROUND, SIGN, INITCAP, LPAD, RPAD, LTRIM, SUBSTR, UPPER
+-- TODO: ABS, ASCII, NVL2.
+-- 
+
+  -- Using funciton in WHERE and ORDER BY clause
+SELECT apt_name, apt_abbr, 
+FROM airports
+WHERE substr(UPPER(apt_name), 3, 1) = 'L'
+ORDER BY substr(apt_name, -1, 1);
+
+-- p.74 Numeric functions:
+-- p.75 Date functions:
+
+SELECT emp_first, emp_last, MONTHS_BETWEEN(SYSDATE, start_date) as months_since_hire
+FROM employees
+WHERE emp_job = 'Pilot';
+
+  -- TODO: p.76 -> truncating data bottom code.
+  -- TODO: p.77, 78 -> code (date manipulation)
+  
+  -- p.79 RR dates
+
+-- ************
+-- p.80 USE SINGLE ROW FUNCTIONS -> ANALYTIC FUNCTIONS.
+-- Read more here: https://oracle-base.com/articles/misc/analytic-functions
+--   https://docs.oracle.com/database/121/SQLRF/functions004.htm#SQLRF06174
+--   http://www.oracle.com/technetwork/database/bi-datawarehousing/wp-in-database-analytics-12c-2132656.pdf
+-- *************
+select UPPER(ACT_BODY_STYLE) act_body_style, act_seats from aircraft_types;
+select act_body_style, avg(act_seats) avg_seats from aircraft_types GROUP BY act_body_style;
+-- +OVER (partitioning_clause)
+select act_body_style, act_seats, avg(act_seats) over (partition by act_body_style) avg_by_style FROM aircraft_types;
+--  -PARTITION BY:
+SELECT act_body_style, act_seats, avg(act_seats) over () avg_over_all FROM aircraft_types;
+-- p.82: +(PARTITION BY x ORDER BY y)
+SELECT act_body_style, act_seats, avg(act_seats) OVER (partition by act_body_style ORDER BY act_seats) AVG_BY_STYLE from aircraft_types;
+-- p.83 -> TODO: Windowing stuff !!!!
+SELECT act_Body_style, act_seats, PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY act_seats) OVER (partition by act_body_style) pc_by_style FROM aircraft_types; 
+  SELECT x, y, PERCENTILE_CONT(0.5) WITHIN GROUP(ORDER by x) OVER (PARTITION BY x) from NUMS_XY ORDER BY 2;
+-- p.84 -> TODO more of these:
+SELECT act_body_style, act_seats, STDDEV(act_seats) OVER (PARTITION BY act_body_style) STDV_BY_STYLE FROM aircraft_types;
+  SELECT x, STDDEV(x) OVER () FROM nums;
+  SELECT x,y, STDDEV(x) OVER (PARTITION BY power(x-y,2)) FROM nums_xy;
+-- p.85-86 LAG
+  SELECT act_body_style, act_seats, LAG(act_seats, 2) OVER (order by act_seats) lag_by_style FROM aircraft_types;
+  SELECT act_body_style, act_seats, LEAD(act_seats, 2) OVER (order by act_seats) lead_by_style FROM aircraft_types;
+-- p.86 LISTAGG -> Look online here: https://oracle-base.com/articles/misc/string-aggregation-techniques
+SELECT LISTAGG(act_name, ':')
+  WITHIN GROUP (ORDER BY act_seats, act_name) AIRCRAFT_NAME
+  FROM aircraft_types
+  WHERE act_decks = 'Single'
+SELECT LISTAGG(x, ':')
+  WITHIN GROUP (ORDER BY x DESC) concatenated
+  FROM nums_xy 
+  WHERE y = 1;
+SELECT LISTAGG(x*y, ':')
+  WITHIN GROUP (ORDER BY x DESC) concatenated
+  FROM nums_xy 
+  WHERE y = 5;
+
+-- ************************************************************  
+-- p.87 Using conversion functions and conditional expressions
+-- ************************************************************  
+-- p.88 Implicit conversion -> TODO: Try with 10-JANUARY-1983 and 10-JAN-1983, then 10-01-1983 which ones will work properly;?
+-- p.89 Explicit conversion.
+  -- TODO: Code from 89
+-- p.90,91 (TO_CHAR, TO_NUMBER(expr, fmt, nlsparam))  
+  -- TODO: Try different nlsparams; try with BINARY_DOUBLE; T0_DATE function p.92
+  -- p.93  -> Julian calendar from Integer:
+  
+  SELECT TO_DATE(2457927, 'J') AS "TO_DATE_EX" from DUAL;
+  SELECT TO_CHAR(TO_DATE(123134,'J'), 'DD-MON-YYYY HH24:MM CC') AS "To_date_ex" FROM DUAL;  
+  SELECT to_char(SYSDATE, 'DD-MON-YYYY, CC, "Julian: "J') from DUAL;
+
+-- p.93-94 Format modifiers (fx vs fm)
+SELECT TO_DATE('February 23,  2012, 2:23 P.M.', 'fxMonth dd, YYYY, HH:MI A.M.') as "To date ex" FROM DUAL;
+
+-- What is the difference with and without fm?:
+SELECT TO_CHAR(SYSDATE, 'fmMonth DD HH24:MI') AS no_fm FROM DUAL;
+SELECT TO_CHAR(SYSDATE, 'Month DD HH24:MI') AS no_fm FROM DUAL;
+
+-- p.95 General functions + conditional expressions.
+SELECT emp_first || ' ' || emp_last,
+  CASE emp_job
+  WHEN 'CEO' THEN 'This is the big Kahuna'
+  WHEN 'CFO' THEN 'The dude holding the piggy bank'
+  WHEN 'SVP' THEN 'Senior right-hand guy'
+  WHEN 'VP' THEN 'Right-hand guy'
+  WHEN 'SrDir' THEN 'Middle Management'
+  WHEN 'Mgr' THEN 'Lower Management'
+  ELSE 'Just another person'
+END CASE
+FROM employees
+
+SELECT act_name, act_seats,
+  CASE 
+    WHEN act_seats < 220 THEN 'Small plane'
+	WHEN act_seats > 250 THEN 'Bigger plane'  
+	WHEN act_seats > 400 THEN 'Jumbo airplane' -- This statement is unreachable
+    ELSE 'Invalid value'
+  END
+FROM aircraft_types;
+
+SELECT act_name, act_seats,
+  CASE 
+    WHEN act_seats < 220 THEN 'Small plane'
+	WHEN act_seats > 250 THEN 'Bigger plane'  
+	WHEN act_seats > 400 THEN 'Jumbo airplane' -- This statement is unreachable
+    ELSE 'Invalid value'
+  END
+FROM (SELECT act_name, act_seats FROM aircraft_types 
+UNION SELECT 'Boeing 797' act_name, null act_seats FROM dual);
+
+-- Decode -> p.97
+SELECT apt_name, DECODE(apt_abbr,
+  'MCO', 'Going to Disneyworld',
+  'MIA', 'CSI Miami, here I come',
+  'ATL', 'Need to get some peaches',
+  'DFW', 'Everything is bigger in Texas',
+  'Is Jacksonville known for anything?')
+  AS DC_RETVAL
+FROM airports;
+  
+)
+
+-- ************************************
+-- p.98 Reporting aggregated data using group functions.
+-- ************************************
+-- AVG, COUNT, MEDIAN, 
+-- **TODO: MEDIAN (p.100), MIN, MAX (p.101)**
+

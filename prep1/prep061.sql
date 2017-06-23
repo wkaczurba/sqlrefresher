@@ -146,3 +146,85 @@ select * from tba;
 alter table tba modify dat not null;
 -- (ILLEGAL): alter table tba add constraint dat_pk unique (dat);
 
+SELECT * FROM all_objects WHERE object_type in ('FUNCTION','PROCEDURE','PACKAGE') AND OBJECT_NAME LIKE '%AG%';
+
+  SELECT 'a' NAME, 416 act_seats FROM DUAL
+  UNION
+  SELECT 'b' NAME, 416 act_seats FROM DUAL
+  UNION
+  SELECT 'c' NAME, 416 act_seats FROM DUAL
+  UNION
+  SELECT 'A' NAME, 416 act_seats FROM DUAL
+  UNION
+  SELECT 'B' NAME, 416 act_seats FROM DUAL
+  UNION
+  SELECT 'C' NAME, 416 act_seats FROM DUAL
+  ORDER by 1;
+
+-- Does INTERSECT ignores NULLs -> NO!
+SELECT NULL FROM DUAL
+INTERSECT
+SELECT NULL FROM DUAL;
+
+SELECT NULL FROM DUAL
+UNION
+SELECT NULL FROM DUAL;
+
+-- This is an interesting one:
+SELECT NULL FROM DUAL
+MINUS
+SELECT NULL FROM DUAL;
+
+SELECT CASE WHEN SYSDATE = '13-JUN-2017' THEN 'TRUE' ELSE 'FALSE' END FROM DUAL;
+SELECT CASE WHEN TRUNC(SYSDATE) = '13-JUN-2017' THEN 'TRUE' ELSE 'FALSE' END FROM DUAL;
+SELECT CASE WHEN TRUNC(SYSDATE) = '13-JUNE-2017' THEN 'TRUE' ELSE 'FALSE' END FROM DUAL;
+SELECT CASE WHEN TRUNC(SYSDATE) = '13/JUNE/2017' THEN 'TRUE' ELSE 'FALSE' END FROM DUAL;
+SELECT CASE WHEN TRUNC(SYSDATE) = '13 JUNE 2017' THEN 'TRUE' ELSE 'FALSE' END FROM DUAL;
+-- These ones are illegal:
+  -- SELECT CASE WHEN TRUNC(SYSDATE) = '13/06/2017' THEN 'TRUE' ELSE 'FALSE' END FROM DUAL;
+  -- SELECT CASE WHEN TRUNC(SYSDATE) = '06/13/2017' THEN 'TRUE' ELSE 'FALSE' END FROM DUAL;
+  -- SELECT CASE WHEN TRUNC(SYSDATE) = '13.06.2017' THEN 'TRUE' ELSE 'FALSE' END FROM DUAL;
+  -- SELECT CASE WHEN TRUNC(SYSDATE) = '13-06-2017' THEN 'TRUE' ELSE 'FALSE' END FROM DUAL;
+  
+SELECT TO_CHAR(SYSDATE, 'HH24:MI:SS') from dual;
+
+-- Can subquery contain "ORDER BY" ?: YES IT CAN!:
+SELECT * FROM (SELECT * FROM EMPLOYEES ORDER BY employee_id);
+-- It is only sets/compound operation where "ORDER BY" cannot be used.
+
+SELECT * FROM (
+SELECT 'Ala' col1, 123123 sal, 0.33 amd FROM DUAL
+UNION 
+SELECT 'Ola' kol1, 12444 usd, 0.22 FROM DUAL
+UNION
+SELECT 'Zenek' coll1, 12444 eur, 123 FROM DUAL)
+ORDER BY amd;
+
+(SELECT * FROM (SELECT 'Ala' col1, 123123 sal, 0.33 amd FROM DUAL
+UNION ALL
+SELECT 'Ola' kol1, 12444 usd, 0.22 FROM DUAL))
+UNION ALL
+SELECT 'Zenek' coll1, 12444 eur, 123 FROM DUAL
+ORDER BY amd;
+
+
+SELECT 'Ala' col1, 123123 sal, 0.33 amd FROM DUAL
+UNION 
+SELECT 'Ola' kol1, 12444 usd, 0.22 FROM DUAL
+ORDER BY amd;
+
+select Coll from (select 'val1'  as Coll from dual
+    union
+    select 'val2' from dual
+    union
+    select 'val3' from dual
+);
+
+select unique(employee_id) from employees;
+  -- You cannot have two distinct expressions in one select.
+  --select distinct(employee_id), distinct(first_name) from employees;
+  
+select employee_id from employees where not employee_id = 101;
+
+select TO_CHAR(TO_DATE('23-JAN-07 12:34', 'dd-mon-yy hh24:mi'), 'HH24:MI') FROM DUAL;
+
