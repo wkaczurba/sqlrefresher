@@ -1,3 +1,61 @@
+-- ** Fancier INSERT ALL
+CREATE TABLE table_setA (
+  col1 varchar(1));
+
+CREATE TABLE table_setB (
+  col1 varchar(1));
+
+INSERT ALL
+  INTO table_setA values (col1)
+  INTO table_setB values (CHR(ASCII(col1) + 1))
+  WITH abc AS
+    (SELECT 'A' col1 FROM DUAL
+    UNION
+    SELECT 'B' col1 FROM DUAL
+    UNION
+    SELECT 'C' col1 FROM DUAL)
+  SELECT col1 FROM abc
+  UNION ALL
+  SELECT col1 FROM abc;
+
+-- ** TODO: LIST ALL OF COMMON COLUMNS THAT WOULD BE USED FOR A NATURAL JOIN.
+  WITH airport_cols AS
+    (SELECT column_name from all_tab_cols where table_name='AIRPORTS'),
+    aircraft_fleet_cols AS
+    (SELECT column_name from all_tab_cols where table_name='AIRCRAFT_FLEET'),
+    aircraft_cols AS
+    (SELECT column_name from all_tab_cols where table_name='AIRCRAFT_TYPES'),
+    employees_cols AS
+    (SELECT column_name from all_tab_cols where table_name='EMPLOYEES'),
+    all_cols AS (
+      SELECT * FROM airport_cols 
+      UNION 
+      SELECT * FROM aircraft_fleet_cols
+      UNION
+      SELECT * FROM aircraft_cols
+      UNION
+      SELECT * FROM employees_cols
+    )
+  (SELECT * FROM airport_cols
+   INTERSECT
+   SELECT * FROM aircraft_fleet_cols)
+  UNION
+  (SELECT * FROM airport_cols
+   UNION 
+   SELECT * FROM aircraft_fleet_cols
+   INTERSECT
+   SELECT * FROM aircraft_cols)
+  UNION
+  (SELECT * FROM airport_cols
+   UNION 
+   SELECT * FROM aircraft_fleet_cols
+   UNION
+   SELECT * FROM aircraft_cols
+   INTERSECT
+   SELECT * FROM employees_cols
+   );
+-- ******************
+
 -- TODO: --
 
 p.26
@@ -264,6 +322,514 @@ FROM airports;
 -- ************************************
 -- p.98 Reporting aggregated data using group functions.
 -- ************************************
--- AVG, COUNT, MEDIAN, 
--- **TODO: MEDIAN (p.100), MIN, MAX (p.101)**
+-- TODO: AVG, COUNT
+-- P.100 -> MEDIAN:
+SELECT emp_job, MEDIAN(salary)
+FROM employees
+GROUP BY emp_job
+GROUP BY MEDIAN(salary) DESC;
 
+SELECT emp_job, MEDIAN(salary)
+FROM employees
+GROUP BY emp_job
+ORDER BY MEDIAN(salary) DESC;
+
+	SELECT MEDIAN(x) FROM (
+	  SELECT 1 x FROM DUAL
+	  UNION SELECT 2 x FROM DUAL
+	  UNION SELECT 3 x FROM DUAL
+	  UNION SELECT 4 x FROM DUAL
+	  UNION SELECT 10 x FROM DUAL
+	);
+
+	SELECT MEDIAN(x) FROM (
+	  SELECT 1 x FROM DUAL UNION
+	  SELECT 2 x FROM DUAL UNION
+	  SELECT 9 x FROM DUAL UNION
+	  SELECT 10 x FROM DUAL
+	);
+
+	SELECT MIN(start_date) "Earliest"
+	FROM employees;
+	
+-- p.101 MIN
+-- P.102 MAX
+-- p.103 SUm
+-- p.103 COUNT + ALL
+SELECT COUNT(DISTINCT emp_job) distinct_values,
+  COUNT(ALL emp_job) AS all_values
+FROM employees;
+	
+SELECT COUNT(DISTINCT emp_job) distinct_values,
+  COUNT(emp_job) AS all values
+FROM employees;
+
+SELECT MAX(emp_first) AS "Max_first"
+  MAX(start_date) AS "Max_start"
+FROM employees;
+
+  -- will fail cannot do AVG over dates:
+  -- SELECT AVG(start_date) FROM employees; 
+
+-- *****************
+--p.105 GROUP DATA BY USING GROUP BY Clause
+-- *****************
+SELECT emp_job, MAX(salary) max_salary
+FROM employees
+GROUP BY emp_job;
+
+SELECT emp_job, MAX(salary) max_salary
+FROM employees
+GROUP BY emp_job
+ORDER BY emp_job;
+
+SELECT apt_name, SUM(act_seats)
+FROM aircraft_fleet_v
+GROUP BY apt_name;
+
+SELECT apt_name, act_name, SUM(act_seats)
+FROM aircraft_fleet_v
+GROUP BY apt_name, act_name;
+
+SELECT AVG(act_seats) FROM aircraft_types GROUP BY act_decks;
+SELECT MAX(AVG(act_seats)) FROM aircraft_types GROUP BY act_decks;
+-- An error will be returned (too deeply nested)
+  -- SELECT COUNT(MAX(AVG(act_seats))) FROM aircraft_Types GROUP BY act_decks;
+
+  
+SELECT emp_job, MAX(salary) max_salary
+FROM employees
+GROUP BY emp_job
+HAVING MAX(salary) > 111500
+AND emp_job != 'CEO'
+ORDER BY emp_job;
+
+SELECT emp_job, MAX(salary) max_salary
+FROM employees
+WHERE emp_job != 'CEO'
+GROUP BY emp_job
+HAVING MAX(salary) > 111500
+ORDER BY emp_job;
+
+-- *************************************
+-- Displaying data from multiple tables
+-- *************************************
+SELECT apt_name, apt_abbr, act_name, act_seats
+FROM airports apt
+  INNER JOIN aircraft_fleet afl
+  ON apt.apt_id = afl.apt_id
+  INNER JOIN aircraft_types act
+  ON act.act_id = afl.act_id;
+
+  -- TODO: p.114
+  -- p.115 Equijoins  
+  SELECT apt_name, act_name, emp_first, emp_last
+  FROM airports apt
+  INNER JOIN aircraft_fleet afl
+  ON apt.apt_id = afl.apt_id
+  INNER JOIN aircraft_types act
+  ON act.act_id = afl.act_id
+  INNER JOIN employees emp
+  ON afl.afl_id = emp.afl_id;  
+  
+  -- p.116
+  SELECT apt_name, act_name, emp_first, emp_last
+  FROM airports apt
+  NATURAL JOIN aircraft_fleet afl
+  NATRUAL JOIN aircraft_types act
+  NATURAL JOIN employees emp;
+  
+  --
+  p.117
+  SELECT apt_name, act_name, emp_first, emp_last
+  FROM airports apt
+  JOIN aircraft_fleet afl USING (apt_id)
+  JOIN aircraft_types act USING (act_id)
+  JOIN employees emp USING (afl_id);
+  
+  SELECT apt_name, act_name, emp_first, emp_last
+  FROM airports apt
+    JOIN aircraft_fleet afl ON (apt.apt_id = afl.apt_id)
+	JOIN aircraft_types act ON (afl.act_id = act.act_id)
+	JOIN employees emp ON (afl.afl_id = emp.afl_id);
+
+-- p.118 NoneEquijoins
+SELECT emp.emp_first, emp.emp_last, salary, slr_code
+FROM employees emp
+  INNER JOIN salary_ranges slr
+  ON emp.salary BETWEEN slr.slr_lowval AND slr.slr_highval
+  ORDER BY slr_code DESC;    
+  
+  -- Additional JOIN conditions (multiple join conditions)
+  SELECT apt_name, act_name, emp_first, emp_last
+  FROM airports apt
+  JOIN aircraft_fleet afl ON (apt.apt_id = afl.apt_id)
+  JOIN aircraft_types act ON (afl.act_id = act.act_id)
+    AND act.act_name = 'Boeing 767'
+  JOIN employees emp ON (afl.afl_id = emp.afl_id);
+  
+  -- Alternatively you can pull additional condition to the WHERE clause:
+  SELECT apt_name, act_name, emp_first, emp_last
+  FROM airports apt
+  JOIN aircraft_fleet afl ON (apt.apt_id = afl.apt_id)
+  JOIN aircraft_types act ON (afl.act_id = act.act_id)
+  JOIN employees emp ON (afl.afl_id = emp.afl_id)
+  WHERE act.act_name = 'Boeing 767';
+  
+-- p.119 Join table to itself using a self-join:
+  SELECT emp.emp_first, emp_last, mgr.emp_first || ' ' || mgr.last_name
+  FROM employees emp
+  LEFT JOIN employees mgr ON (emp.emp_supervisor = mgr.emp_id)
+  
+ SELECT emp.emp_first, emp.emp_last, nvl2(mgr.emp_id, mgr.emp_first || ' ' || mgr.emp_last, '--none--') 
+  FROM employees emp
+  LEFT JOIN employees mgr ON (emp.emp_supervisor = mgr.emp_id)
+  ORDER BY NVL(mgr.emp_id, 0), emp.emp_last, emp.emp_first 
+ 
+  -- p.120 => CONNECT BY (APPARENTLY NOT ON THE EXAM)
+  -- Well described here: https://docs.oracle.com/cd/B19306_01/server.102/b14200/queries003.htm
+  SELECT level, emp_first, emp_last, emp_job, emp_id, emp_supervisor
+  FROM employees emp
+  START WITH emp_supervisor IS NULL
+  CONNECT BY PRIOR emp_id = emp_supervisor;  
+  
+   --> TODO -> practice more with CONNECT BY
+   
+-- ********************
+-- p.121 Viewing data that generally does not meet a join condition by using outer joins
+-- ********************
+
+CREATE TABLE table_A (
+  col1 NUMBER,
+  col2 VARCHAR2(1)
+);
+
+CREATE TABLE table_B (
+  col1 NUMBER
+  col2 VARCHAR2(1)
+)
+
+INSERT INTO table_A values(1,'a');
+INSERT INTO table_A values(2,'b');
+INSERT INTO table_A values(3,'c');
+
+INSERT INTO table_B values(2,'B');
+INSERT INTO table_B values(3,'C');
+INSERT INTO table_B values(4,'D');
+
+SELECT a.col1 AS TA_COL1, a.col2 AS TA_col2,
+       b.col1 AS TB_COL1, b.col2 AS TB_col2
+FROM table_A a
+  INNER JOIN table_B b ON a.col1 = b.col1;
+
+SELECT a.col1 AS TA_COL1, a.col2 AS TA_COL2,
+       b.col1 AS TB_COL1, b.col2 AS TB_COL2
+FROM table_A a
+  RIGHT JOIN table_B b ON a.col1 = b.col1;
+
+SELECT a.col1 AS TA_COL1, a.col2 AS TA_COL2,
+       b.col1 AS TB_COL1, b.col2 AS TB_COL2
+FROM table_A a
+  LEFT JOIN table_B b ON a.col1 = b.col1;
+
+SELECT a.col1 AS TA_COL1, a.col2 AS TA_COL2,
+       b.col1 AS TB_COL1, b.col2 AS TB_COL2
+FROM table_A a
+  FULL OUTER JOIN table_B b ON a.col1 = b.col1;  
+
+-- **********************************************
+-- p.125 Using Subqueries to Solve Queries
+-- **********************************************
+
+
+-- Inline subquery example (p.125)  
+SELECT apt_name, act_name, sum_seats
+FROM (SELECT apt_name, act_name, SUM(act_seats) sum_seats
+      FROM aircraft_fleet_v
+	  GROUP BY apt_name, act_name)
+ORDER BY sum_seats;
+
+
+-- Nested subquery example (p.126)
+SELECT emp_first, emp_last, emp_job
+FROM employees emp
+WHERE salary > (SELECT slr_highval FROM salary_ranges WHERE slr_code='S05');
+
+-- p.127 In SELECT LIST; FROM Clause; WHERE Clause; HAVING clause:
+SELECT col1, col2, (SELECT expr FROM table) as sqexp
+FROM table_name;
+
+SELECT col1, col2, col3 
+FROM (select col1, col2, col3 FROM table_name);
+
+SELECT col1, col2, col3
+FROM table_name
+WHERE col1 = (SELECT col1 FROM table_name2);
+
+SELECT col1, col2, SUM(col3)
+FROM table_name
+GROUP BY col1, col2
+HAVING SUM(col3) > (SELECT expr FROM table_name);
+
+-- p.128 - Describe the types of problems subqueries can solve.
+  -- Create a table equivalent to SELECT From
+SELECT emp_job, avg_sal, min_sal || ' - ' || max_sal AS salary_range
+FROM (SELECT emp_job, AVG(salary) AVG_SAL, MIN(salary) MIN_SAL, MAX(salary) MAX_SAL
+  FROM employees
+  GROUP BY emp_job)
+ORDER BY max_sal DESC;
+
+  -- p.128 Generate a Result Set to Filter by
+SELECT apt_name, apt_abbr
+FROM airports apt
+WHERE apt.apt_id IN (
+  SELECT apt_id
+  FROM aircraft_types act
+  INNER JOIN aircraft_fleet afl
+  ON act.act_id = afl.act_id
+  WHERE act_name='Boeing 747');
+
+  -- p.129 Generate Projection Columns
+  -- TODO: Rewrite the code.
+  
+  -- p.129 Generate Data FOR INSERT, UPDATE or DELETE ()
+   --[?]: INSERT INTO x values (SELECT 2 FROM DUAL);
+   -- P:130: INSERT, UPDATE, DELETE
+   INSERT INTO aircraft_types (act_name, act_body_style, act_decks, act_seats)
+      SELECT 'Boeing 787', act_body_style, act_decks, 300
+	  FROM aircraft_types
+	  WHERE act_name = 'Boeing 767';
+  -- TODO: Rewrite code from page 130 for UPDATE and DELETE statements
+  
+-- p.130 Describe the types of subqueries
+  -- Single Row Subqueries
+    -- TODO: Rewrite code from 131.
+  -- Multiple Row Subqueries
+    -- TODO: Rewrite code from 131.
+  -- p.131 Correlated subqueries
+    -- TODO: Rewrite code from 132/TOP
+	
+-- p.132 Query data using correlated subqueries
+    -- TODO: Code 132/BOTTOM.
+	SELECT emp_first, emp_last, salary
+	FROM employees emp1
+	WHERE salary < (SELECT AVG(SALARY) from EMPLOYEES emp2
+	  WHERE emp1.emp_job = emp2.emp_job);
+
+-- p.132 Update and delete rows using correlated subqueries
+  -- SKIPPED; TODO: pages 133 - 135
+  
+-- ***************************************
+-- P.135 Use the WITH clause.
+-- ***************************************
+
+-- p.136
+WITH
+  dept_costs AS (
+    SELECT department_name, SUM(salary) dept_total
+    FROM hr.employees e
+    INNER JOIN hr.departments d
+    ON e.department_id = d.department_id
+    GROUP BY department_name),
+  avg_cost AS (
+    SELECT SUM(dept_total)/COUNT(*) avrg
+	FROM dept_costs)
+SELECT * FROM dept_costs
+  WHERE dept_total > (SELECT avrg FROM avg_cost)
+ORDER BY department_name;
+
+-- *************************************************
+-- p.136 * Use single-row and multiple-row subqueries 
+-- *************************************************
+  -- a) Single Row Opeartors (=, <, >, >=, <, <= <> !=)
+  -- b) Multiple Row Opearators (IN, NOT IN, ANY, ALL, EXISTS, NOT EXISTS)
+  
+  -- a) Single row subqueries
+  SELECT apt_name, apt_abbr, act_name, act_seats
+  FROM airports apt
+    INNER JOIN aircraft_fleet afl
+    ON apt.apt_id = afl.apt_id
+    INNER JOIN aircraft_types act
+    ON act.act_id = afl.act_id
+  WHERE afl_id = (
+    SELECT afl_id
+	FROM employees
+	WHERE emp_last = 'Picard');
+	
+	-- Alternative with JOIN and NOT subquery
+	SELECT apt_name, apt_abbr, act_name, act_seats
+	FROM airports apt
+	  INNER JOIN aircraft_fleet afl
+	  ON apt.apt_id = afl.apt_id
+	  INNER JOIN aircraft_types act
+	  ON act.act_id = afl.act_id
+	  INNER JOIN employees emp
+	  ON emp.afl_id = afl.afl_id
+	  AND emp.emp_last = 'Picard';
+
+  -- [p.137] b) Multiple Row Opearators (IN, NOT IN, ANY, ALL, EXISTS, NOT EXISTS)
+  SELECT apt_name, apt_abbr, act_name, act_seats
+  FROM airports apt
+    INNER JOIN aircraft_fleet afl
+	ON apt.apt_id = afl.apt_id
+	INNER JOIN aircraft_types act
+	ON act.act_id = afl.act_id
+	WHERE afl_id IN (
+	  SELECT afl_id
+	  FROM employees
+	  WHERE emp_last IN ('Picard','McCoy','Aptop'));
+	  
+	-- p.138 Alternative with JOIN and NOT subquery [FOR multiple-row subqueries]
+	SELECT apt_name, apt_abbr, act_name, act_seats
+	FROM airports apt
+	  INNER JOIN aircraft_fleet afl
+	  ON apt.apt_id = afl.apt_id
+	  INNER JOIN aircraft_types act
+	  ON act.act_id = afl.act_id
+	  INNER JOIN employees emp
+	  ON emp.afl_id = afl.afl_id
+	  AND emp_last IN ('Picard','McCoy','Aptop');  
+  
+-- *************************************************
+-- p. 138 Using the Set Operators
+-- *************************************************  
+-- p.139 (UNION, UNION ALL. INTERSECT, MINUS)
+-- p.140 What cannot be done! - TODO: Try some illegal stuff to check
+
+
+
+-- p.141-142 -> UNION, UNION ALL, INTESECT, MINUS
+SELECT col1 FROM table_setA
+UNION
+SELECT col1 FROM table_setB;
+
+SELECT col1 FROM table_setA
+UNION ALL
+SELECT col1 FROM table_setB;
+
+SELECT col1 FROM table_setA
+INTERSECT
+SELECT col1 FROM table_setB;
+
+SELECT col1 FROM table_setA
+MINUS
+SELECT col1 FROM table_setB;
+
+SELECT col1 FROM table_setB
+MINUS
+SELECT col1 FROM table_setA;
+
+-- *************************************************
+-- p. 145 Manipulating data
+-- *************************************************  
+-- TRUNCATE/DELETE:
+  -- TODO: Review TRUNCATE and DELETE; particularly what DELETE deletes and how does it do that.
+  -- TODO: p. 146 -> REVIEW!! Many terms, e.g. MINEXTENTs, NEXT storage parameter to be reviewed, temporary tables, etc.
+  
+-- INSERT rows into a table.
+-- INSERT/UPDATE/DELETE/MERGE operations.
+  
+-- p.148 
+INSERT INTO employees (emp_id, afl_id, emp_first, emp_last, emp_job, emp_supervisor, salary, start_date)
+  VALUES (18, NULL, 'Guy' ,'Newberry', 'Mgr', 8, 98250, '07-jan-2012');	
+
+  -- DELETE FROM employees where emp_id = 18 AND afl_id IS NULL AND  emp_first = 'Guy' AND emp_last='Newberry';
+
+-- The two below are the same:
+INSERT INTO employees (emp_id, afl_id, emp_first, emp_last, emp_job, emp_supervisor, salary, start_date)
+  VALUES (18, NULL, 'Guy' ,'Newberry', 'Mgr', 8, NULL, NULL);    
+INSERT INTO employees (emp_id, afl_id, emp_first, emp_last, emp_job, emp_supervisor)
+  VALUES (18, NULL, 'Guy' ,'Newberry', 'Mgr', 8);    
+
+-- DEFAULT column values:
+ALTER TABLE employees MODIFY start_date DEFAULT SYSDATE);  
+
+-- DEFAULT ON NULL USAGE; Even though we are attempting explicitly NULL -> the DEFAULT ON NULL will chage it to 01-JAN-2000:
+  ALTER TABLE employees MODIFY start_date DEFAULT ON NULL '01-JAN-2000';
+  --DELETE FROM employees where emp_id = 18 AND afl_id IS NULL AND  emp_first = 'Guy' AND emp_last='Newberry';
+  INSERT INTO employees (emp_id, afl_id, emp_first, emp_last, emp_job, emp_supervisor, start_date)
+    VALUES (18, NULL, 'Guy' ,'Newberry', 'Mgr', 8, NULL);	
+  SELECT * FROM employees WHERE emp_id = 18;
+
+-- p.151 INSERT using SUBQUERY
+
+INSERT INTO aircraft_types (act_name, act_body_style, act_decks, act_seats)
+  SELECT 'Boeing 787', act_body_style, act_decks, 300 FROM aircraft_types;
+  
+-- p.152 UPDATE rows in a table.
+UPDATE employees SET emp_supervisor=18
+  WHERE emp_supervisor = 9;
+
+  -- This will fail as emp_supervisor is NOT NULL
+  -- UPDATE employees SET emp_last=NULL
+  --   WHERE emp_id = 12;
+
+-- p.153-154. DELETE rows from a table.
+
+  DELETE FROM employees WHERE emp_id = 9;
+  DELETE FROM aircraft_types WHERE act_name NOT IN (SELECT act_name FROM aircraft_fleet_v);
+
+-- p.154 Control transactions:
+  -- COMMIT, ROLLBACK, SAVEPOINT, SET TRANSACTION, SET CONSTRAINT
+  -- TODO: Review SET TRANSACTION, SET CONSTRAINT
+  
+  -- p.155 -> TODO: CODE.
+  -- p.156 ROLLBACK TO SAVEPOINT B; ROLLBACK TO SAVEPOINT A; ROLLBACK;
+  
+  -- p.156 Uncommited transactions
+  
+  -- p.156 Commited transactions
+  
+  
+-- ************************************
+-- p.158 Using DDL statements to Create and Manage Tables
+-- ************************************
+  -- p.158 Data types available for columns
+  
+-- p.159 Create a simple table
+  CREATE TABLE ocp_example (
+    ocp_id NUMBER,
+	  ocp_name VARCHAR2(20),
+	  ocp_date DATE
+  );
+  
+-- p.160
+CREATE TABLE employees (
+  emp_id NUMBER,
+  afl_id NUMBER,
+  emp_first VARCHAR2(10),
+  emp_last VARCHAR2(10) NOT NULL,
+  emp_job VARCHAR2(10),
+  emp_supervisor NUMBER,
+  salary NUMBER,
+  start_date DATE DEFAULT SYSDATE,
+    PRIMARY KEY (EMP_ID));
+)
+
+-- p.160 CTAS (Creat Table AS):
+  CREATE TABLE employees_copy
+    AS SELECT emp_first, emp_last, emp_job, start_date
+	     FROM employees
+		 WHERE start_date > START_DATE - 365;
+		 
+-- p.160 Database Object Naming Rules
+  -- What is allowed what is not, what are max lengths; what does max length vary on?
+  -- What names are allowed when table name is quoted
+  -- TODO: Try to violate some of the limits.
+  
+-- P.161 Namespaces
+  -- What schema objects share one spacename?
+  -- What schema objects do have their own namespaces?
+  -- Is index and sequence in the same namespace?
+  -- Is sequence and table in the same namespace?
+  -- Is constraint and index in the same namespace?
+  -- Is private synonym and packages in the same name as tables? [p.161]
+  
+-- p.162 Schema references.
+  -- p.163 
+  
+  SELECT * FROM hr.departments
+    WHERE department_id < 70;
+
+-- p.162 Altering a table
+  --

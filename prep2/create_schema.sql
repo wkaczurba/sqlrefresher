@@ -6,9 +6,12 @@
 DROP TABLE prep071.AIRPORTS;
 DROP TABLE prep071.AIRCRAFT_TYPES;
 DROP TABLE prep071.AIRCRAFT_FLEET;
+DROP TABLE prep071.employees;
 DROP TABLE prep071.sort_example;
 DROP TABLE prep071.nums;
-
+DROP TABLE prep071.salary_ranges;
+DROP TABLE prep071.table_setA;
+DROP TABLE prep071.table_setB;
 
   CREATE TABLE prep071.AIRPORTS
    (	"APT_ID" NUMBER, 
@@ -61,11 +64,11 @@ Insert into prep071.AIRCRAFT_FLEET (AFL_ID,ACT_ID,APT_ID) values (10,3,null);
    (	"EMP_ID" NUMBER, 
 	"AFL_ID" NUMBER, 
 	"EMP_FIRST" VARCHAR2(10), 
-	"EMP_LAST" VARCHAR2(10), 
+	"EMP_LAST" VARCHAR2(10) NOT NULL, 
 	"EMP_JOB" VARCHAR2(10), 
 	"EMP_SUPERVISOR" NUMBER, 
 	"SALARY" NUMBER, 
-	"START_DATE" DATE DEFAULT SYSDATE,
+	"START_DATE" DATE DEFAULT SYSDATE
    ) ;
 /
 ALTER TABLE prep071.EMPLOYEES ADD CONSTRAINT emp_id_pk PRIMARY KEY (emp_id);
@@ -133,4 +136,47 @@ INSERT INTO prep071.nums VALUES (10);
 CREATE OR REPLACE VIEW prep071.nums_v
 AS SELECT n1.x X, n2.x Y FROM prep071.nums n1 CROSS JOIN prep071.nums n2;
 
+create table prep071.salary_ranges (
+  salary_code varchar(3)
+--    constraint salary_code_pk primary key
+    constraint salary_code_ck CHECK (SUBSTR(salary_code, 1, 1) = 'S' AND TO_NUMBER(SUBSTR(salary_code, 2, 2), '00') > 0),
+  slr_lowval number(10,2) constraint slr_lowval_ck CHECK (slr_lowval >= 0),
+  slr_highval number(10,2) constraint slr_highval_ck CHECK (slr_highval > 0),
+  constraint slr_ck check (slr_lowval <= slr_highval)
+);
+alter table prep071.salary_ranges rename column salary_code to slr_code;
+
+insert all
+  into prep071.salary_ranges (slr_code, slr_lowval, slr_highval) values ('S04', 0, 100000)
+  into prep071.salary_ranges (slr_code, slr_lowval, slr_highval) values ('S05', 100000, 120000)
+  into prep071.salary_ranges (slr_code, slr_lowval, slr_highval) values ('S06', 120000, 140000)
+  into prep071.salary_ranges (slr_code, slr_lowval, slr_highval) values ('S07', 140000, 180000)
+  into prep071.salary_ranges (slr_code, slr_lowval, slr_highval) values ('S09', 180000, 250000)
+  select * from dual;
+
+-- for p. 140:
+
+CREATE TABLE prep071.table_setA (
+  col1 varchar(1)
+);
+
+CREATE TABLE prep071.table_setB (
+  col1 varchar(1)
+);
+
+INSERT INTO prep071.table_setA (col1) values('A');
+INSERT INTO prep071.table_setA (col1) values('A');
+INSERT INTO prep071.table_setA (col1) values('A');
+INSERT INTO prep071.table_setA (col1) values('B');
+INSERT INTO prep071.table_setA (col1) values('C');
+
+INSERT INTO prep071.table_setB (col1) values('B');
+INSERT INTO prep071.table_setB (col1) values('B');
+INSERT INTO prep071.table_setB (col1) values('C');
+INSERT INTO prep071.table_setB (col1) values('C');
+INSERT INTO prep071.table_setB (col1) values('D');
+INSERT INTO prep071.table_setB (col1) values('D');
+INSERT INTO prep071.table_setB (col1) values('D');
+
 commit;
+

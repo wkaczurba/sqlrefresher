@@ -2,6 +2,7 @@ create role prep071role not identified;
 grant create session to prep071role;
 grant alter session to prep071role;
 grant create table to prep071role;
+grant delete any table to prep071role;
 
 create user prep071 identified by prep071role
   default tablespace users
