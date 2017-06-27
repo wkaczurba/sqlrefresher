@@ -825,11 +825,316 @@ CREATE TABLE employees (
   -- Is constraint and index in the same namespace?
   -- Is private synonym and packages in the same name as tables? [p.161]
   
--- p.162 Schema references.
+-- p.162 Schema references. -> selecting objects from another schema means also different namespace.
   -- p.163 
   
   SELECT * FROM hr.departments
     WHERE department_id < 70;
 
 -- p.162 Altering a table
-  --
+  -- TODO: Review Oracle SQL Reference Guide for the complete list:
+  -- New columns
+  -- Modify existing columns definitions
+  -- Drop existing columns
+  -- Set unused columns to UNUSED
+  -- Rename columns
+  -- Add or remove column constraints
+  -- Add default values to columns
+
+-- p.162 Droppinig a Table
+  -- DROP TABLE
+  -- TODO: +optional PURGE to drop completeley
+  -- What is dropped (indexes, table triggers, constraint, object privilages)
+  -- What is not dropped (synonyms)
+  
+-- ***********************************  
+-- p.164 Create constraints for tables
+-- ***********************************
+  -- PK, Unique, NOT NULL, FK, CHECK
+   
+-- p.165
+  CREATE TABLE aircraft_types2 (
+    act_id NUMBER,
+	act_name VARCHAR2(20),
+	act_body_style VARCHAR2(10),
+	act_decks NUMBER,
+	act_seats NUMBER NOT NULL,
+	  CONSTRAINT ac_type_pk PRIMARY KEY (act_id)
+  );
+  DROP Table aircraft_types2 PURGE;
+
+  CREATE TABLE aircraft_types2 (
+    act_id NUMBER CONSTRAINT act_type_pk PRIMARY KEY,
+	act_name VARCHAR2(20),
+	act_body_style VARCHAR2(10),
+	act_decks NUMBER,
+	act_seats NUMBER NOT NULL
+  );    
+  DROP Table aircraft_types2 PURGE;
+  
+-- p.165
+  select constraint_name, constraint_type, search_condition FROM user_constraints
+  WHERE table_name = 'AIRCRAFT_TYPES2';
+  
+-- ************************************
+-- p.167 Drop columns and set column UNUSED
+-- *******************************
+
+create table constraint_test (
+col1 number,
+col2 number(8, 2)
+);
+alter table constraint_test drop (col2); -- OK
+alter table constraint_test add col2 number;  -- OK
+alter table constraint_test drop column col2; -- OK
+alter table constraint_test add (col2 number, col3 number); -- OK
+--alter table constraint_test drop column col2 number;
+-- fails:
+-- alter table constraint_test add column (col2 number);
+-- alter table constraint_test add column col2 number;
+drop table constraint_test purge;
+  
+-- p.167 + CASCADE CONSTRAINT
+
+  create table parent (
+    parent_id number primary key,
+    name varchar2(80)
+  );
+    
+  create table child (
+    child_id number primary key,
+    parent_id number not null,
+    constraint parent_id_fk foreign key (child_id) references parent(parent_id)
+  );
+  
+  insert into parent (parent_id, name) values (1, 'John');
+  insert into child (child_id, parent_id) values (1, 1);
+  
+  -- This will fail ():
+    -- alter table parent drop (parent_id);
+  alter table parent drop (parent_id) cascade constraints; -- THIS WILL DELETE.
+  
+  drop table parent purge;
+  drop table child purge;
+  
+  -- YOU CAN ALSO USE "CASCADE CONSTRAINTS" with DROP TABLE:,E.G.:
+  drop table parent cascade constraints;
+
+-- p.168 -> SET UNUSED:
+  ALTER TABLE constraint_test
+  SET UNUSED COLUMN col2;
+  
+  ALTER TABLE constraint_test
+  SET UNUSED (col2);
+  
+  -- Later on:
+  ALTER TABLE constraint_test DROP UNUSED COLUMNS;
+
+  -- FULL Example:
+create table drop_cols (
+  col1 number,
+  col2 number
+);
+
+alter table drop_cols set unused (col2);
+alter table drop_cols drop unused columns;
+alter table drop_cols add (col2 number);
+alter table drop_cols set unused column col2;
+alter table drop_cols drop unused columns;  
+	
+-- ******************************************
+-- p. 168 Create and use external tables
+-- ******************************************
+-- The best stuff to read: https://docs.oracle.com/database/122/ADMIN/managing-tables.htm#ADMIN01507
+-- DATAPUMP: https://docs.oracle.com/database/122/SUTIL/ORACLE_DATAPUMP-access-driver.htm#SUTIL1457
+
+  -- TYPE = ORACLE_LOADER or ORACLE_DATAPUMP
+  -- DEFAULT DIRECTORY = dir using **Oracle Object Directory**; The directory object must exist prior to the creation of the EXTERNAL TABLE.
+  -- ACCESS PARAMETERS = specify the information about the external data source required for the access driver to be able to read it. <opaque_format_spec (?)>
+  -- LOCATION = location of the external data (paierd directory objects and filenames); if unspecified -> default directory object is used.
+  
+  CREATE TABLE emp_load
+    (emp_number CHAR(5),
+	 emp_dob CHAR(20),
+	 emp_last_name CHAR(20),
+	 emp_first_name CHAR(15),
+	 emp_middle_name CHAR(15),
+	 emp_hire_date DATE)
+  ORGANIZATION EXTERNAL
+    (TYPE ORACLE_LOADER
+	 DEAFULT DIRECTORY def_dir1
+	 ACCESS PARAMETERS
+	  (RECORDS DELIMITED BY NEWLINE FIELDS
+	    (emp_number CHAR(2),
+		 emp_dob CHAR(20),
+		 emp_last_name CHAR(18),
+		 emp_first_name CHAR(11),
+		 emp_middle_name CHAR(11),
+		 emp_hire_date CHAR(10)
+		 date_format DATE mask "mm/dd/yyyy"
+		)
+	  )
+	LOCATION ('info.dat')
+  );
+  
+-- This should be working ok:
+CREATE DIRECTORY def_dir1 AS 'C:/app/OracleHomeUser1/oradata/orcl/org_external';
+    
+CREATE TABLE inventories_xt ORGANIZATION EXTERNAL
+  (
+    TYPE ORACLE_DATAPUMP
+    DEFAULT DIRECTORY def_dir1
+    LOCATION ('inv_xt.dmp')
+  )
+  AS SELECT * FROM employees;
+
+DROP TABLE inventories_xt PURGE;
+
+-------------------------------------
+-- key_val.csv content:
+--
+-- first,row,abc
+-- second,row,def
+-- third,row,ghi
+
+CREATE TABLE kv_tab_xt (
+  key VARCHAR2(25),
+  col2 VARCHAR2(25),
+  col3 varchar2(25))
+ORGANIZATION EXTERNAL
+  (DEFAULT DIRECTORY def_dir1
+   LOCATION ('key_val.csv')
+  );
+
+select * from kv_tab_xt;
+
+  -- ***************************************************
+-- p. 171 Managing Objewcts with Data Dictionary Views
+-- *****************************************************
+-- Tables: DBA_ , USER_, ALL_.
+-- Views: V$, GV$
+--
+-- Useful views: DBA_USERS, DICTIONARY, DICT_COLUMNS, GLOBAL_NAME, NLS_DATABASE_PARAMETERS, SESSION_PRIVS
+
+SELECT * FROM GLOBAL_NAME;
+SELECT * FROM DICTIONARY;
+
+-- NON-SCHEMA OBJECTS: DBA_USERS, dictionary, dict_columns, global_name, nls_database_parameters, session_privs
+  SELECT global_name FROM GLOBAL_NAME;
+  SELECT table_name, comments FROM DICTIONARY;
+  SELECT table_name, column_name, comments FROM dict_columns WHERE table_name='EMPLOYEES';
+  -- Need SYS priviliages:
+    --SELECT * FROM DBA_USERS;
+    --SELECT account_status, count(*) FROM DBA_USERS GROUP BY account_status;
+  SELECT * FROM NLS_DATABASE_PARAMETERS;
+  SELECT * FROM SESSION_PRIVS; -- Session privilages;
+  
+-- Schema objects: 
+  SELECT * FROM user_indexes;
+  SELECT * FROM user_ind_columns;
+  SELECT * FROM user_sequences;
+  SELECT * FROM user_synonyms;
+  SELECT * FROM user_tab_columns;
+  SELECT * FROM user_tab_privs;
+  SELECT * FROM user_tables;
+  SELECT * FROM user_objects;
+
+-- Dynamic performance views V_$: V$DATBASE, V$DATAFILE, V$NLS_PARAMETERS, V$PARAMETER, V$SQLTEXT_WITH_NEWLINES, V$VERSION
+
+-- p.173:
+SELECT table_name, status, pct_free, pct_used, num_rows, blocks FROM user_tables WHERE table_name LIKE 'AIRPORTS';
+
+-- p.174
+SELECT * FROM dictioniary WHERE table_name LIKE 'USER_COL%'
+ -- USER_COLL_TYPES, USER_COL_COMMENTS, USER_COL_PENDING_STATUS, USER_COL_PRIVS_MADE, USER_COL_PRIVS_RECD
+
+	SELECT * FROM dictionary WHERE table_name LIKE 'USER_COL%';
+	-- Only one row in my dictionary table had a description; rest of them was NULL;
+	SELECT * FROM dictionary WHERE comments IS NOT NULL;
+
+-- ***********************************
+-- p.175 Controlling user access
+-- ***********************************
+-- 1. granting/revoking rights to a user or groups of users
+-- 2. creating a database role/assigning privilages to it; a role can be granted to a user or other roles.
+-- 3. the use of secure applications roles [not on the exam.]
+
+-- System Privilages vs Object Privilages;
+  -- System Privilages e.g. ALTER USER, CREATE ROLLBACK SEGMENT
+  -- Object Privilages GRANT SELECT ON schema.table TO user;
+     GRANT SELECT ON hr.employees TO prep071;
+   
+  -- p.176 System Privilages: [TODO: CODE ALL OF IT]
+    -- CREATE TABLE,
+	-- CREATE ANY TABLE,
+	-- ALTER ANY TABLE,
+	-- DELETE ANY TABLE,
+	-- DROP ANY TABLE,
+	-- INSERT ANY TABLE,
+	-- CREATE ANY INDEX,
+    -- ALTER ANY INDEX;
+
+  -- p.176 Object Privilages: [TODO: CODE ALL OF IT]
+    -- ALTER
+	-- INDEX
+	-- INSERT
+	-- SELECT
+	-- UPDATE
+	-- DELETE
+
+-- p.176 PUBLIC -> TODO: TRY
+GRANT select ON prep071.aircraft_types TO PUBLIC;
+
+-- p.177 ANY -> TODO: TRY
+
+-- p.177 WITH ADMIN -> TODO
+-- p.177 WITH GRANT OPTION -> TODO
+
+-- ***************************************
+-- p.178 Grant privilages on tables and on a user 
+-- ***************************************
+SELECT * FROM hr.regions;
+
+-- TODO: Create user ocpguru;
+connect sys/Oracle_1@pdborcl AS sysdba;
+  --drop role ocpgurus;
+  create role ocpgurus;
+  grant select on hr.employees to ocpgurus;
+  revoke select on hr.employees from ocpgurus;
+disconnect;
+
+-- p.178 GRANT/REVOKE: DELETE, INSERT, UPDATE, REFERENCES, TRIGGER
+GRANT select, update, delete ON hr.aircraft_types TO jjones, ngreenbe;
+REVOKE select, update, delete ON hr.aircraft_types FROM jjones, ngreenbe;
+GRANT select ON prep071.aircraft_types TO PUBLIC;
+REVOKE select ON prep071.aircraft_types FROM PUBLIC;
+
+-- *****************************************************
+-- p.180 Distinguish between privileges and roles.
+-- *****************************************************
+-- What about PL/SQL procedures for which you need a privilege?
+
+-- *****************************************************
+-- p.181 Managing schema objects
+-- *****************************************************
+-- Schema vs. non-schema objects.
+-- List schema objects 
+--   (constraints, db triggers, indexes, sequences, synonyms, tables, views)
+-- Nonschema Objects -> no affinityu to any particular schema.,
+--   directories, roles, rollback segments, tablespaces, users
+--
+-- p.182:
+SELECT emp_first, emp_last, emp_job, salary
+  FROM employees
+  WHERE emp_job = 'SVP'
+  ORDER BY 2, 1;
+  
+SELECT emp_first, emp_last, emp_job, salary
+  FROM prep071.employees
+  WHERE emp_job = 'SVP'
+  ORDER BY 2, 1;
+  
+-- Synonyms [not on the exam].
+-- **********************************************************************
+-- p.183 Create simple and complex views with visible/invisible columns
+-- **********************************************************************
